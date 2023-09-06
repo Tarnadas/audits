@@ -2,7 +2,18 @@
 
 WALC engaged Mario Reder as an independend Near Protocol expert to audit their fungible token smart contract, which is deployed on the address [walc.near](https://nearblocks.io/address/walc.near).
 
-## About the auditor
+## Table of contents
+
+1. [About the auditor](#1-about-the-auditor)
+2. [Scope](#2-scope)
+3. [Test approach & methodology](#3-test-approach--methodology)
+4. [Overview](#4-overview)
+5. [Findings](#5-findings)
+    - 5.1 [(VULN-01) Fungible token transfer fails to send unused gas](#51-vuln-01-fungible-token-transfer-fails-to-send-unused-gas---low)
+    - 5.2 [(VULN-02) Missing possibility to unregister account](#52-vuln-02-missing-possibility-to-unregister-account---informational)
+    - 5.3 [(VULN-03) Usage of vulnerable crates](#53-vuln-03-usage-of-vulnerable-crates---informational)
+
+## 1. About the auditor
 
 Mario Reder is an independent Near Protocol expert with 2+ years of experience developing smart contracts on Near and 5+ years of experience with the Rust programming language and WebAssembly.
 
@@ -12,16 +23,13 @@ Contact:
 - Github: [Tarnadas](https://github.com/Tarnadas)
 - Telegram: [marior_dev](https://t.me/marior_dev)
 
-## Scope
+## 2. Scope
 
 WALC fungible token contract on [Github](https://github.com/walc-labs/walcft).
 
-## Test approach & methodology
+## 3. Test approach & methodology
 
-Vulnerabilities or issues observed are ranked based on the risk assessment methodology by measuring the LIKELIHOOD of a security incident and the IMPACT should an incident occur.
-This framework works for communicating the characteristics and impacts of technology vulnerabilities.
-The quantitative model ensures repeatable and accurate measurement while enabling users to see the underlying vulnerability characteristics that were used to generate the Risk scores.
-For every vulnerability, a risk level will be calculated on a scale of 5 to 1 with 5 being the highest likelihood or impact.
+Vulnerabilities or issues observed are ranked based on the risk assessment methodology by measuring the LIKELIHOOD of a security incident and the IMPACT should an incident occur. This framework works for communicating the characteristics and impacts of technology vulnerabilities. The quantitative model ensures repeatable and accurate measurement while enabling users to see the underlying vulnerability characteristics that were used to generate the Risk scores. For every vulnerability, a risk level will be calculated on a scale of 5 to 1 with 5 being the highest likelihood or impact.
 
 ### RISK SCALE - LIKELIHOOD
 
@@ -43,20 +51,19 @@ For every vulnerability, a risk level will be calculated on a scale of 5 to 1 wi
 1 - May cause minimal or un-noticeable impact.
 ```
 
-The risk level is then calculated using a sum of these two values, creating
-a value of 10 to 1 with 10 being the highest level of security risk.
+The risk level is then calculated using a sum of these two values, creating a value of 10 to 1 with 10 being the highest level of security risk.
 
-```
-10 - CRITICAL
-9 - 8 - HIGH
-7 - 6 - MEDIUM
-5 - 4 - LOW
-3 - 1 - VERY LOW AND INFORMATIONAL
-```
+| Value | Severity |
+|--|--|
+| 10 | CRITICAL |
+| 9 - 8 | HIGH |
+| 7 - 6 | MEDIUM |
+| 5 - 4 | LOW |
+| 3 - 1 | VERY LOW AND INFORMATIONAL |
 
 _The test approach & methodology used in this audit is similar to [Halborn](https://www.halborn.com/)._
 
-## Overview
+## 4. Overview
 
 | Security Analysis | Risk Level |
 |--|--|
@@ -64,14 +71,11 @@ _The test approach & methodology used in this audit is similar to [Halborn](http
 | [Missing possibility to unregister account](#vuln-02-missing-possibility-to-unregister-account---informational) | Informational |
 | [Usage of vulnerable crates](#vuln-03-usage-of-vulnerable-crates---informational) | Informational |
 
-## Findings
+## 5. Findings
 
-### (VULN-01) Fungible token transfer fails to send unused gas - Low
+### 5.1 (VULN-01) Fungible token transfer fails to send unused gas - Low
 
-A call to `ft_transfer_call` fails to attach unused gas to `ft_on_transfer` function.
-Instead it only attaches a fixed amount of gas.
-This can likely result in the receiving smart contract to run out of gas, resulting in the receipt to fail.
-A proper refund will be done in the `ft_resolve_transfer` function.
+A call to `ft_transfer_call` fails to attach unused gas to `ft_on_transfer` function. Instead it only attaches a fixed amount of gas. This can likely result in the receiving smart contract to run out of gas, resulting in the receipt to fail. A proper refund will be done in the `ft_resolve_transfer` function.
 
 ```rs
 #[payable]
@@ -104,10 +108,9 @@ Impact - 1
 
 <h4 id="vuln01-recommendation">Recommendation</h4>
 
-In order for the smart contracts who receive the fungible token to properly execute, it is necessary to attach any unused gas. Otherwise this could result in several applications like Decentralized Exchanges (DEXes) or money markets being (partially) unusable.
-The amount of gas that can be attached to the cross contract call can be calculated by getting the unused gas via `env::unused_gas()` and subtracting a fixed amount of gas that would be necessary to finish remaining execution plus the gas that is attached to `ft_resolve_transfer`.
+In order for the smart contracts who receive the fungible token to properly execute, it is necessary to attach any unused gas. Otherwise this could result in several applications like Decentralized Exchanges (DEXes) or money markets being (partially) unusable. The amount of gas that can be attached to the cross contract call can be calculated by getting the unused gas via `env::unused_gas()` and subtracting a fixed amount of gas that would be necessary to finish remaining execution plus the gas that is attached to `ft_resolve_transfer`.
 
-### (VULN-02) Missing possibility to unregister account - Informational
+### 5.2 (VULN-02) Missing possibility to unregister account - Informational
 
 The [NEP-145 standard](https://github.com/near/NEPs/blob/master/neps/nep-0145.md) defines Storage Management and includes a function `storage_unregister` to unregister an account. This function is missing in the WALC fungible token smart contract.
 
@@ -160,7 +163,7 @@ pub(crate) fn internal_deposit(&mut self, account_id: &AccountId, amount: Balanc
 }
 ```
 
-<h4 id="vuln02-risk-level">Risk Level</h4
+<h4 id="vuln02-risk-level">Risk Level</h4>
 
 Likelihood - 3
 
@@ -170,7 +173,7 @@ Impact - 1
 
 It is recommended to be compliant with the NEP-145 standard and implement the missing function. The `ft_resolve_transfer` function also needs changes to properly check whether the account receiving the refund has been unregistered and do a fungible token burn in this case.
 
-### (VULN-03) Usage of vulnerable crates - Informational
+### 5.3 (VULN-03) Usage of vulnerable crates - Informational
 
 | ID | package | description |
 |--|--|--|
@@ -185,5 +188,4 @@ Impact - 1
 
 <h4 id="vuln04-recommendation">Recommendation</h4>
 
-The vulnerable crates cannot impact the underlying application, but it is still advised to be aware of them and attempt to update them to a novulnerable version.
-Furthermore, it is necessary to set up dependency monitoring to always be alerted when a new vulnerability is disclosed in one of the project’s crates.
+The vulnerable crates cannot impact the underlying application, but it is still advised to be aware of them and attempt to update them to a novulnerable version. Furthermore, it is necessary to set up dependency monitoring to always be alerted when a new vulnerability is disclosed in one of the project’s crates.
